@@ -84,6 +84,8 @@
   /* cenas */
   .cena{position:relative; min-height:100svh}
   .pinada{height:100svh; overflow:hidden}
+  .scrim{position:absolute; inset:0; z-index:-1; pointer-events:none;
+         background:radial-gradient(ellipse 75% 70% at 50% 50%, rgba(16,18,26,.58) 0%, rgba(16,18,26,.34) 52%, rgba(16,18,26,0) 100%)}
 
   /* abertura */
   #abertura{display:grid; align-content:center; padding:0 clamp(20px,6vw,96px); min-height:100svh}
@@ -101,7 +103,7 @@
 
   /* caos */
   #caos{display:grid; place-items:center; padding:0 clamp(20px,6vw,96px)}
-  .caos-inner{max-width:22ch; text-align:center; position:relative; z-index:2}
+  .caos-inner{max-width:min(72vw,1120px); text-align:center; position:relative; z-index:2}
   .caos-titulo{font-size:clamp(28px,4.6vw,66px); font-weight:500; line-height:1.12; letter-spacing:-.01em; color:var(--marfim); min-height:2.2em}
   .caos-titulo .w{display:inline-block; white-space:nowrap}
   .caos-titulo .c{display:inline-block; min-width:.42ch; text-align:center}
@@ -116,27 +118,28 @@
   /* leitura */
   #leitura{display:grid; align-items:center; padding:0 clamp(20px,6vw,96px)}
   .leitura-grid{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(24px,6vw,96px); align-items:center; max-width:1500px}
-  .manuscrito{max-width:36ch}
+  .manuscrito{max-width:52ch; padding:clamp(20px,2.4vw,34px); background:linear-gradient(180deg, rgba(25,29,41,.9), rgba(18,21,32,.9)); border:1px solid var(--linha); border-radius:16px; backdrop-filter:blur(8px)}
   .cap-rotulo{font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-bottom:22px}
-  .texto{font-family:var(--serif); font-weight:400; font-size:clamp(18px,1.75vw,23px); line-height:1.72; color:var(--marfim)}
+  .texto{font-family:var(--serif); font-weight:400; font-size:clamp(16px,1.5vw,21px); line-height:1.6; color:var(--marfim)}
   .texto .w{color:rgba(236,233,226,.22); transition:color .5s ease}
   .texto .w.lido{color:var(--marfim)}
   .texto .w.agora{color:#fff; text-shadow:0 0 14px rgba(236,233,226,.35)}
   .texto .ent{color:inherit; transition:color .5s ease, text-decoration-color .5s ease; text-decoration:underline; text-decoration-color:transparent; text-underline-offset:.22em; text-decoration-thickness:1px}
   .texto .ent.aceso, .texto .ent.aceso .w{color:var(--c)}
   .texto .ent.aceso{text-decoration-color:var(--c); text-shadow:0 0 18px color-mix(in srgb, var(--c) 45%, transparent)}
-  .leitura-lado{align-self:end; padding-bottom:6vh; max-width:44ch; justify-self:end}
-  .leitura-lado h2{font-size:clamp(26px,2.6vw,38px); line-height:1.15; letter-spacing:-.01em; margin-bottom:14px}
+  .leitura-lado{align-self:center; max-width:44ch; justify-self:end; padding:clamp(20px,2.4vw,34px); background:linear-gradient(180deg, rgba(25,29,41,.9), rgba(18,21,32,.9)); border:1px solid var(--linha); border-radius:16px; backdrop-filter:blur(8px)}
+  .leitura-lado h2{font-size:clamp(22px,2.2vw,32px); line-height:1.15; letter-spacing:-.01em; margin-bottom:14px}
   .leitura-lado p{color:var(--marfim2); font-size:16px}
   .legenda{list-style:none; margin:22px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:8px 16px; font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; color:var(--marfim2)}
   .legenda li{display:inline-flex; align-items:center; gap:7px}
   .legenda i{width:8px; height:8px; border-radius:50%; background:var(--c); box-shadow:0 0 8px var(--c)}
   @media (max-width:860px){
     .leitura-grid{grid-template-columns:1fr; gap:22px; align-content:center}
-    .leitura-lado{justify-self:start; padding-bottom:0}
+    .leitura-lado{justify-self:start}
     .leitura-lado h2{font-size:24px}
     .leitura-lado p{font-size:15px}
-    .texto{font-size:17px; line-height:1.6}
+    .texto{font-size:16px; line-height:1.6}
+    .manuscrito, .leitura-lado{padding:18px 20px}
   }
 
   /* etiquetas 3D */
@@ -205,7 +208,7 @@
   .canto.br{right:-1px; bottom:-1px; border-left:0; border-top:0}
   .etq{position:absolute; font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--marfim2); opacity:0; padding:6px 10px; background:rgba(16,18,26,.75); border:1px solid var(--linha2); border-radius:999px}
   .etq.tl{left:18px; top:18px} .etq.tr{right:18px; top:18px} .etq.bl{left:18px; bottom:18px} .etq.br{right:18px; bottom:18px}
-  .priv-texto{position:relative; z-index:2; text-align:center; max-width:56ch}
+  .priv-texto{position:relative; z-index:2; text-align:center; max-width:62ch; padding:clamp(24px,3vw,46px); background:linear-gradient(180deg, rgba(25,29,41,.84), rgba(18,21,32,.84)); border:1px solid var(--linha); border-radius:16px; backdrop-filter:blur(8px)}
   .priv-texto h2{font-size:clamp(34px,5.4vw,84px); line-height:1; letter-spacing:-.02em; margin-bottom:18px}
   .priv-texto p{color:var(--marfim2); font-size:clamp(16px,1.4vw,19px)}
   .priv-texto .eyebrow{text-align:center}
@@ -298,6 +301,7 @@
   </section>
 
   <section id="leitura" class="cena pinada" data-cap="02" data-nome="A Trama lê">
+    <div class="scrim" aria-hidden="true"></div>
     <div class="leitura-grid">
       <div class="manuscrito">
         <p class="cap-rotulo">Capítulo 27 · rascunho</p>
@@ -402,6 +406,7 @@
   </section>
 
   <section id="privacidade" class="cena pinada" data-cap="05" data-nome="Sua máquina">
+    <div class="scrim" aria-hidden="true"></div>
     <div class="maquina" id="maquina" aria-hidden="true">
       <i class="canto tl"></i><i class="canto tr"></i><i class="canto bl"></i><i class="canto br"></i>
       <span class="etq tl">ollama · local</span><span class="etq tr">0 bytes enviados</span>
@@ -419,12 +424,12 @@
       <p class="eyebrow">O estudo</p>
       <h2 class="titulo-fim" id="tituloFim">Procuro escritores voluntários.</h2>
       <p>Se você tem uma história longa em andamento — romance, série, campanha de RPG, roteiro — e topa testar o experimento na sua obra, quero você no estudo. Sem custo: é pesquisa, não produto. Em troca, só peço seu feedback honesto.</p>
-      <a class="botao magnet" data-hover href="mailto:[contato@seudominio.com.br]?subject=Quero%20participar%20do%20estudo"><i></i><span>Me conte o que você escreve</span></a>
+      <a class="botao magnet" data-hover href="mailto:sjoely131@gmail.com?subject=Quero%20participar%20do%20estudo"><i></i><span>Me conte o que você escreve</span></a>
     </div>
     <footer class="rodape">
       <a class="logo" href="#abertura" data-hover><i></i>Trama</a>
       <p class="mono">A palavra é sua, sempre.</p>
-      <a href="https://www.linkedin.com/in/[seu-perfil]" data-hover>Diário do projeto no LinkedIn</a>
+      <a href="https://www.linkedin.com/in/joely-silva/" data-hover>Diário do projeto no LinkedIn</a>
     </footer>
   </section>
 </main>
@@ -511,12 +516,12 @@
     return v;
   }
   const sCaos    = addScene({ camZ:8.2, rotY:0.35 });
-  const sLerA    = addScene({ shift: narrow() ? 0 : 2.2, dim: narrow() ? 0.35 : 0 }, easeIO);
+  const sLerA    = addScene({ shift: narrow() ? 0 : 2.2, dim: 0.6 }, easeIO);
   const sLerB    = addScene({ morph:1, camZ:7.9 }, (t) => easeIO(t));
   const sMapaA   = addScene({ shift:0, dim:0 });
   const sMapaB   = addScene({ rotY:1.75, rotX:0.22, camZ:8.8 }, (t) => t);
   const sAlerta  = addScene({ dim:0.78, gold:1, rotY:2.15, rotX:0.05 });
-  const sPriv    = addScene({ dim:0, gold:0, camZ:11.2, rotY:2.6, rotX:0 });
+  const sPriv    = addScene({ dim:0.55, gold:0, camZ:11.2, rotY:2.6, rotX:0 });
   const sFim     = addScene({ collapse:1, camZ:8, rotY:3.1 });
 
   const intro = { reveal: reduce ? 1 : 0 };
@@ -526,6 +531,7 @@
   /* ---------- etiquetas projetadas (array simples; alimentado pelo 3D) ---------- */
   const tags = [...document.querySelectorAll('#tags .tag')];
   const tagOn = new Array(HERO.length).fill(false);
+  let suppressTags = false;
 
   /* ---------- cena 3D (opcional — degrada sem WebGL) ---------- */
   let pivot;
@@ -696,7 +702,7 @@
       const t = tags[i];
       t.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%,-50%)`;
       const g = HERO[i].gold;
-      const vis = tagOn[i] && v3.z < 1 && c < 0.25 && (g ? true : cur.dim < 0.45) && m > 0.35;
+      const vis = !suppressTags && tagOn[i] && v3.z < 1 && c < 0.25 && (g ? true : cur.dim < 0.45) && m > 0.35;
       t.classList.toggle('on', vis);
       t.classList.toggle('ouro', g === 1 && cur.gold > 0.5);
     }
@@ -723,7 +729,7 @@
   addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
     U.uPR.value = renderer.getPixelRatio();
-    sLerA.to.shift = narrow() ? 0 : 2.2; sLerA.to.dim = narrow() ? 0.35 : 0;
+    sLerA.to.shift = narrow() ? 0 : 2.2;
   });
   } catch (err) {
     // WebGL indisponível (máquina virtual, RDP, GPU/driver restrito, aceleração
@@ -841,6 +847,7 @@
     }
     gsap.timeline({
       scrollTrigger: { trigger: '#leitura', start: 'top top', end: '+=230%', pin: true, scrub: 0.4,
+        onToggle: (self) => { suppressTags = self.isActive; },
         onUpdate: (self) => { const p = self.progress; sLerA.p = clamp01(p / 0.22); sLerB.p = clamp01((p - 0.04) / 0.86); setRead(p); },
         onRefresh: (self) => { const p = self.progress; sLerA.p = clamp01(p / 0.22); sLerB.p = clamp01((p - 0.04) / 0.86); } }
     }).from('.leitura-lado > *', { y: 24, opacity: 0, stagger: .06, duration: .25, ease: 'power2.out' }, .05)
@@ -851,6 +858,7 @@
     const dist = () => Math.max(0, trilha.scrollWidth - innerWidth + 40);
     gsap.to(trilha, { x: () => -dist(), ease: 'none',
       scrollTrigger: { trigger: '#mapa', start: 'top top', end: () => '+=' + (dist() + innerHeight * 0.4), pin: true, scrub: 0.5, invalidateOnRefresh: true,
+        onToggle: (self) => { suppressTags = self.isActive; },
         onUpdate: (self) => { sMapaA.p = clamp01(self.progress / 0.18); sMapaB.p = self.progress; },
         onRefresh: (self) => { sMapaA.p = clamp01(self.progress / 0.18); sMapaB.p = self.progress; } }
     });
@@ -871,6 +879,7 @@
     // capítulo 5: sua máquina
     gsap.timeline({
       scrollTrigger: { trigger: '#privacidade', start: 'top top', end: '+=130%', pin: true, scrub: 0.5,
+        onToggle: (self) => { suppressTags = self.isActive; },
         onUpdate: (self) => { sPriv.p = clamp01(self.progress / 0.55); },
         onRefresh: (self) => { sPriv.p = clamp01(self.progress / 0.55); } }
     }).to('.canto', { scale: 1, duration: .22, stagger: .04, ease: 'power3.out' }, .05)
