@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sua história, mapeada</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<meta name="description" content="Trama — projeto de estudo em inteligência narrativa. Você escreve por capítulos; a IA constrói o mapa vivo da sua história e avisa quando algo contradiz o que você já estabeleceu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --noite:#10121A; --noite2:#151824; --sup:#1B1F2E; --linha:#272C3D; --linha2:#343A4E;
+    --marfim:#ECE9E2; --marfim2:#B9B7B1; --faint:#7C808F;
+    --fio:#E0596B; --fio-esc:#B23A48; --ouro:#D9A441;
+    --personagem:#E0596B; --local:#7FA8E0; --evento:#D9A441; --objeto:#6CBF9A; --organizacao:#A98BD9;
+    --serif:"Spectral", Georgia, "Times New Roman", serif;
+    --sans:"Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --mono:"Spline Sans Mono", Consolas, "Courier New", monospace;
+  }
+  html{color-scheme:dark; background:var(--noite); scroll-behavior:auto}
+  html.lenis, html.lenis body{height:auto}
+  .lenis.lenis-smooth{scroll-behavior:auto !important}
+  .lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+  .lenis.lenis-stopped{overflow:hidden}
+  .lenis.lenis-smooth iframe{pointer-events:none}
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--noite); color:var(--marfim);
+    font-family:var(--sans); font-size:17px; line-height:1.6;
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+    cursor:none;
+  }
+  @media (pointer:coarse){ body{cursor:auto} }
+  a{color:var(--fio)}
+  a:focus-visible, button:focus-visible{outline:2px solid var(--fio); outline-offset:3px}
+  h1,h2,h3{font-family:var(--serif); font-weight:600; margin:0; text-wrap:balance}
+  p{margin:0}
+  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--fio); margin:0 0 16px}
+  .mono{font-family:var(--mono)}
+
+  /* camadas fixas */
+  #gl{position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none}
+  #veu{position:fixed; inset:0; z-index:1; pointer-events:none;
+       background:radial-gradient(ellipse at 50% 42%, rgba(16,18,26,0) 38%, rgba(16,18,26,.78) 100%)}
+  #grao{position:fixed; inset:-100%; z-index:2; pointer-events:none; opacity:.06;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+        animation:grao 1.1s steps(6) infinite}
+  @keyframes grao{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-4%)}60%{transform:translate(-4%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+  main{position:relative; z-index:3}
+
+  /* topo e trilho */
+  .topo{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between; align-items:center;
+        padding:22px 28px; pointer-events:none}
+  .topo > *{pointer-events:auto}
+  .logo{display:inline-flex; align-items:center; gap:9px; font-family:var(--serif); font-weight:600; font-size:19px; color:var(--marfim); text-decoration:none}
+  .logo i{width:10px; height:10px; border-radius:50%; background:var(--fio); box-shadow:0 0 12px rgba(224,89,107,.7)}
+  .capitulo{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--marfim2); display:flex; gap:14px; align-items:center}
+  .capitulo #capNum{color:var(--fio)}
+  .trilho{position:fixed; right:26px; top:50%; transform:translateY(-50%); z-index:20; height:min(46vh,380px); display:flex; gap:12px; align-items:stretch; pointer-events:none}
+  .trilho-linha{position:relative; width:1px; background:var(--linha2)}
+  .trilho-linha i{position:absolute; left:50%; top:0; width:9px; height:9px; border-radius:50%; background:var(--fio); box-shadow:0 0 10px rgba(224,89,107,.8); transform:translate(-50%,-50%)}
+  .trilho-caps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.08em}
+  .trilho-caps li{line-height:1; transition:color .3s}
+  .trilho-caps li.on{color:var(--marfim)}
+  @media (max-width:760px){ .trilho{display:none} .topo{padding:16px 18px} }
+
+  /* cursor */
+  #cursor{position:fixed; left:0; top:0; z-index:99; pointer-events:none}
+  #cursor .ponto, #cursor .anel{position:absolute; left:0; top:0; border-radius:50%; transform:translate(-50%,-50%)}
+  #cursor .ponto{width:8px; height:8px; background:var(--fio); box-shadow:0 0 12px rgba(224,89,107,.9); transition:transform .25s}
+  #cursor .anel{width:36px; height:36px; border:1px solid rgba(224,89,107,.55); transition:transform .35s, border-color .35s}
+  body.cur-hover #cursor .anel{transform:translate(-50%,-50%) scale(1.9); border-color:rgba(224,89,107,.9)}
+  body.cur-hover #cursor .ponto{transform:translate(-50%,-50%) scale(.45)}
+  @media (pointer:coarse){ #cursor{display:none} }
+
+  /* loader */
+  #loader{position:fixed; inset:0; z-index:50; background:var(--noite); display:grid; place-items:center; gap:18px; grid-auto-rows:max-content; align-content:center; clip-path:inset(0 0 0 0)}
+  @media (pointer:fine){ a, button, .painel{cursor:none} }
+  #loader svg{width:min(70vw,720px); height:24px; overflow:visible}
+  #loader path{fill:none; stroke:var(--fio); stroke-width:1.5; stroke-dasharray:1; stroke-dashoffset:1; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 6px rgba(224,89,107,.8))}
+  #loader p{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--marfim2); opacity:0}
+
+  /* cenas */
+  .cena{position:relative; min-height:100svh}
+  .pinada{height:100svh; overflow:hidden}
+
+  /* abertura */
+  #abertura{display:grid; align-content:center; padding:0 clamp(20px,6vw,96px); min-height:100svh}
+  .hero{max-width:1200px}
+  .titulo{font-size:clamp(54px,11.5vw,176px); line-height:.94; letter-spacing:-.025em; font-weight:600; color:var(--marfim)}
+  .titulo .w{display:inline-block; white-space:nowrap}
+  .titulo .m{display:inline-block; overflow:hidden; vertical-align:bottom; padding-bottom:.06em; margin-bottom:-.06em}
+  .titulo .c{display:inline-block; transform:translateY(112%)}
+  .sub{margin-top:34px; max-width:52ch; font-size:clamp(17px,1.6vw,21px); color:var(--marfim2); opacity:0}
+  .sub em{font-style:italic; font-family:var(--serif); color:var(--marfim); font-size:1.08em}
+  .dica{margin-top:56px; display:flex; align-items:center; gap:14px; font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); opacity:0}
+  .fio-dica{width:64px; height:1px; background:linear-gradient(90deg, var(--fio), transparent); position:relative; overflow:visible}
+  .fio-dica::after{content:""; position:absolute; left:0; top:-3px; width:7px; height:7px; border-radius:50%; background:var(--fio); animation:dica 2.2s ease-in-out infinite}
+  @keyframes dica{0%{left:0; opacity:1}70%{left:58px; opacity:0}100%{left:58px; opacity:0}}
+
+  /* caos */
+  #caos{display:grid; place-items:center; padding:0 clamp(20px,6vw,96px)}
+  .caos-inner{max-width:22ch; text-align:center; position:relative; z-index:2}
+  .caos-titulo{font-size:clamp(28px,4.6vw,66px); font-weight:500; line-height:1.12; letter-spacing:-.01em; color:var(--marfim); min-height:2.2em}
+  .caos-titulo .w{display:inline-block; white-space:nowrap}
+  .caos-titulo .c{display:inline-block; min-width:.42ch; text-align:center}
+  .caos-titulo .c.oculto{visibility:hidden}
+  .caos-titulo .c.ruido{color:var(--fio); opacity:.85}
+  .fragmentos{position:absolute; inset:0; pointer-events:none; z-index:1}
+  .frag{position:absolute; left:var(--x); top:var(--y); font-family:var(--mono); font-size:clamp(10px,.85vw,13px); letter-spacing:.06em; color:var(--marfim2); white-space:nowrap}
+  .frag b{display:inline-block; font-weight:400; padding:6px 10px; border:1px solid var(--linha2); border-radius:999px; background:rgba(21,24,36,.7); backdrop-filter:blur(4px)}
+  .frag.ouro b{border-color:rgba(217,164,65,.6); color:var(--ouro)}
+  @media (max-width:760px){ .frag:nth-child(n+8){display:none} }
+
+  /* leitura */
+  #leitura{display:grid; align-items:center; padding:0 clamp(20px,6vw,96px)}
+  .leitura-grid{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(24px,6vw,96px); align-items:center; max-width:1500px}
+  .manuscrito{max-width:36ch}
+  .cap-rotulo{font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-bottom:22px}
+  .texto{font-family:var(--serif); font-weight:400; font-size:clamp(18px,1.75vw,23px); line-height:1.72; color:var(--marfim)}
+  .texto .w{color:rgba(236,233,226,.22); transition:color .5s ease}
+  .texto .w.lido{color:var(--marfim)}
+  .texto .w.agora{color:#fff; text-shadow:0 0 14px rgba(236,233,226,.35)}
+  .texto .ent{color:inherit; transition:color .5s ease, text-decoration-color .5s ease; text-decoration:underline; text-decoration-color:transparent; text-underline-offset:.22em; text-decoration-thickness:1px}
+  .texto .ent.aceso, .texto .ent.aceso .w{color:var(--c)}
+  .texto .ent.aceso{text-decoration-color:var(--c); text-shadow:0 0 18px color-mix(in srgb, var(--c) 45%, transparent)}
+  .leitura-lado{align-self:end; padding-bottom:6vh; max-width:44ch; justify-self:end}
+  .leitura-lado h2{font-size:clamp(26px,2.6vw,38px); line-height:1.15; letter-spacing:-.01em; margin-bottom:14px}
+  .leitura-lado p{color:var(--marfim2); font-size:16px}
+  .legenda{list-style:none; margin:22px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:8px 16px; font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; color:var(--marfim2)}
+  .legenda li{display:inline-flex; align-items:center; gap:7px}
+  .legenda i{width:8px; height:8px; border-radius:50%; background:var(--c); box-shadow:0 0 8px var(--c)}
+  @media (max-width:860px){
+    .leitura-grid{grid-template-columns:1fr; gap:22px; align-content:center}
+    .leitura-lado{justify-self:start; padding-bottom:0}
+    .leitura-lado h2{font-size:24px}
+    .leitura-lado p{font-size:15px}
+    .texto{font-size:17px; line-height:1.6}
+  }
+
+  /* etiquetas 3D */
+  #tags{position:fixed; inset:0; z-index:4; pointer-events:none}
+  .tag{position:absolute; left:0; top:0; display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; letter-spacing:.06em; color:var(--marfim);
+       opacity:0; transition:opacity .5s; transform:translate(-50%,-50%); will-change:transform}
+  .tag i{width:7px; height:7px; border-radius:50%; background:var(--c); box-shadow:0 0 10px var(--c)}
+  .tag span{padding:3px 8px; border:1px solid var(--linha2); border-radius:999px; background:rgba(16,18,26,.72); backdrop-filter:blur(3px); transform:translateY(-1.1em)}
+  .tag.on{opacity:1}
+  .tag.ouro span{border-color:rgba(217,164,65,.7); color:var(--ouro)}
+
+  /* mapa */
+  #mapa{display:flex; flex-direction:column; justify-content:center; gap:clamp(18px,4vh,40px); padding-top:8vh}
+  .mapa-cabeca{padding:0 clamp(20px,6vw,96px)}
+  .mapa-cabeca h2{font-size:clamp(28px,3.6vw,52px); letter-spacing:-.015em; line-height:1.08}
+  .trilha{display:flex; gap:clamp(18px,2.4vw,36px); padding:0 clamp(20px,6vw,96px); width:max-content; will-change:transform}
+  .painel{position:relative; width:min(62vw,560px); flex:none; padding:26px 28px 30px; border:1px solid var(--linha); border-radius:12px;
+          background:linear-gradient(180deg, rgba(27,31,46,.88), rgba(21,24,36,.88)); backdrop-filter:blur(6px);
+          transform-style:preserve-3d; transition:border-color .3s}
+  .painel:hover{border-color:rgba(224,89,107,.5)}
+  .painel::after{content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; opacity:0; transition:opacity .35s;
+                 background:radial-gradient(400px 220px at var(--mx,50%) var(--my,50%), rgba(224,89,107,.16), transparent 70%)}
+  .painel:hover::after{opacity:1}
+  .painel-num{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--faint); margin-bottom:14px}
+  .painel-arte{height:150px; margin-bottom:22px; border-radius:8px; border:1px solid var(--linha); background:rgba(16,18,26,.6); display:grid; place-items:center; overflow:hidden}
+  .painel-arte svg{width:100%; height:100%}
+  .painel h3{font-size:clamp(24px,2.4vw,34px); line-height:1.1; letter-spacing:-.012em; margin-bottom:10px}
+  .painel p{color:var(--marfim2); font-size:16px; max-width:38ch}
+  @media (max-width:760px){ .painel{width:78vw; padding:20px} .painel-arte{height:120px} }
+
+  /* alerta */
+  #alerta{display:grid; place-items:center; padding:0 clamp(20px,6vw,96px)}
+  .alerta-inner{width:min(1100px,100%); position:relative}
+  .cotejo{position:relative; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto; gap:26px clamp(24px,8vw,140px); min-height:min(46vh,420px)}
+  .trecho{margin:0; font-family:var(--serif); font-size:clamp(18px,1.9vw,26px); line-height:1.45; color:var(--marfim); max-width:26ch; position:relative; z-index:2}
+  .trecho cite{display:block; font-style:normal; font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-bottom:10px}
+  .trecho.a{grid-column:1; grid-row:1; align-self:start}
+  .trecho.b{grid-column:2; grid-row:2; align-self:end; justify-self:end; text-align:right}
+  .trecho mark{background:none; color:var(--ouro)}
+  .fio-ouro{position:absolute; inset:0; width:100%; height:100%; z-index:1; overflow:visible}
+  .fio-ouro path{fill:none; stroke:var(--ouro); stroke-width:1.5; vector-effect:non-scaling-stroke; stroke-dasharray:1; stroke-dashoffset:1; filter:drop-shadow(0 0 6px rgba(217,164,65,.8))}
+  .cartao-alerta{position:relative; margin:34px auto 0; max-width:640px; padding:18px 20px 18px 54px; border-radius:8px;
+                 background:rgba(42,35,20,.92); border:1px solid #5A4A22; border-left:3px solid var(--ouro); backdrop-filter:blur(6px); z-index:3}
+  .cartao-alerta svg{position:absolute; left:18px; top:20px; width:22px; height:22px; color:var(--ouro)}
+  .cartao-alerta small{display:block; font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ouro); margin-bottom:6px}
+  .cartao-alerta p{font-size:clamp(16px,1.4vw,19px); line-height:1.5; color:var(--marfim)}
+  .cartao-alerta .evid{font-family:var(--mono); font-size:11.5px; color:var(--marfim2); margin-top:8px; letter-spacing:.04em}
+  .acoes{display:flex; gap:10px; margin-top:14px}
+  .acoes button{font:600 13px var(--sans); color:var(--marfim); background:transparent; border:1px solid #5A4A22; padding:8px 14px; border-radius:8px; cursor:none; transition:background .2s, border-color .2s}
+  .acoes button:hover{background:rgba(217,164,65,.14); border-color:var(--ouro)}
+  .nota-alerta{margin:26px auto 0; max-width:60ch; text-align:center; color:var(--marfim2); font-size:15.5px}
+  @media (max-width:760px){
+    .cotejo{grid-template-columns:1fr; min-height:0}
+    .trecho.b{grid-column:1; grid-row:2; justify-self:start; text-align:left}
+    .fio-ouro{display:none}
+  }
+
+  /* privacidade */
+  #privacidade{display:grid; place-items:center; padding:0 clamp(20px,6vw,96px)}
+  .maquina{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(82vw,1100px); height:min(66vh,620px); pointer-events:none}
+  .maquina::before{content:""; position:absolute; inset:0; border:1px solid var(--linha2); opacity:var(--b, 0)}
+  .canto{position:absolute; width:26px; height:26px; border:2px solid var(--fio); transform:scale(0)}
+  .canto.tl{left:-1px; top:-1px; border-right:0; border-bottom:0}
+  .canto.tr{right:-1px; top:-1px; border-left:0; border-bottom:0}
+  .canto.bl{left:-1px; bottom:-1px; border-right:0; border-top:0}
+  .canto.br{right:-1px; bottom:-1px; border-left:0; border-top:0}
+  .etq{position:absolute; font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--marfim2); opacity:0; padding:6px 10px; background:rgba(16,18,26,.75); border:1px solid var(--linha2); border-radius:999px}
+  .etq.tl{left:18px; top:18px} .etq.tr{right:18px; top:18px} .etq.bl{left:18px; bottom:18px} .etq.br{right:18px; bottom:18px}
+  .priv-texto{position:relative; z-index:2; text-align:center; max-width:56ch}
+  .priv-texto h2{font-size:clamp(34px,5.4vw,84px); line-height:1; letter-spacing:-.02em; margin-bottom:18px}
+  .priv-texto p{color:var(--marfim2); font-size:clamp(16px,1.4vw,19px)}
+  .priv-texto .eyebrow{text-align:center}
+  @media (max-width:760px){ .etq{font-size:9.5px} .maquina{width:92vw; height:70vh} }
+
+  /* convite */
+  #convite{display:grid; grid-template-rows:1fr auto; padding:14vh clamp(20px,6vw,96px) 0}
+  .convite-inner{align-self:center; max-width:62ch; margin:0 auto; text-align:center}
+  .titulo-fim{font-size:clamp(38px,6.4vw,104px); line-height:1; letter-spacing:-.022em; margin-bottom:26px}
+  .titulo-fim .w{display:inline-block; white-space:nowrap}
+  .titulo-fim .m{display:inline-block; overflow:hidden; vertical-align:bottom; padding-bottom:.08em; margin-bottom:-.08em}
+  .titulo-fim .c{display:inline-block; transform:translateY(112%)}
+  .convite-inner p{color:var(--marfim2); font-size:clamp(16px,1.4vw,19px); margin-bottom:34px}
+  .botao{display:inline-flex; align-items:center; gap:12px; padding:16px 26px; border-radius:8px; background:var(--fio-esc); color:#fff; font-weight:600; text-decoration:none; font-size:16px; position:relative; overflow:hidden; will-change:transform}
+  .botao::before{content:""; position:absolute; inset:0; background:var(--fio); transform:translateY(101%); transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+  .botao:hover::before{transform:translateY(0)}
+  .botao span{position:relative}
+  .botao i{position:relative; width:9px; height:9px; border-radius:50%; background:#fff; box-shadow:0 0 10px #fff}
+  .rodape{display:flex; flex-wrap:wrap; gap:14px 28px; align-items:center; justify-content:space-between; padding:40px 0 34px; border-top:1px solid var(--linha); margin-top:14vh; color:var(--marfim2); font-size:14px}
+  .rodape a{color:var(--marfim2); text-decoration:none; border-bottom:1px solid var(--linha2)}
+  .rodape a:hover{color:var(--marfim); border-color:var(--fio)}
+  .rodape .mono{font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+
+  @media (prefers-reduced-motion: reduce){
+    #grao{animation:none}
+    .fio-dica::after{animation:none}
+    *{transition-duration:0s !important}
+  }
+</style>
+
+<body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="veu" aria-hidden="true"></div>
+<div id="grao" aria-hidden="true"></div>
+<div id="tags" aria-hidden="true">
+  <span class="tag" data-i="0" style="--c:var(--personagem)"><i></i><span>Marina</span></span>
+  <span class="tag" data-i="1" style="--c:var(--personagem)"><i></i><span>Pedro</span></span>
+  <span class="tag" data-i="2" style="--c:var(--personagem)"><i></i><span>Teo</span></span>
+  <span class="tag" data-i="3" style="--c:var(--personagem)"><i></i><span>o ferreiro</span></span>
+  <span class="tag" data-i="4" style="--c:var(--local)"><i></i><span>Porto Cinzento</span></span>
+  <span class="tag" data-i="5" style="--c:var(--objeto)"><i></i><span>a carta</span></span>
+  <span class="tag" data-i="6" style="--c:var(--evento)"><i></i><span>o incêndio</span></span>
+  <span class="tag" data-i="7" style="--c:var(--organizacao)"><i></i><span>Casa Albuquerque</span></span>
+</div>
+
+<header class="topo">
+  <a class="logo" href="#abertura" data-hover><i></i>Trama</a>
+  <div class="capitulo"><span id="capNum">00</span><span id="capNome">Abertura</span></div>
+</header>
+<aside class="trilho" aria-hidden="true">
+  <div class="trilho-linha"><i id="trilhoNo"></i></div>
+  <ol class="trilho-caps" id="trilhoCaps"><li class="on">00</li><li>01</li><li>02</li><li>03</li><li>04</li><li>05</li><li>06</li></ol>
+</aside>
+<div id="cursor" aria-hidden="true"><i class="ponto"></i><i class="anel"></i></div>
+
+<div id="loader" aria-hidden="true">
+  <svg viewBox="0 0 100 10" preserveAspectRatio="none"><path pathLength="1" d="M0 5 C 18 5, 22 1, 34 5 S 52 9, 66 5 S 88 1, 100 5"/></svg>
+  <p>lendo a história…</p>
+</div>
+
+<main>
+  <section id="abertura" class="cena" data-cap="00" data-nome="Abertura">
+    <div class="hero">
+      <p class="eyebrow">Projeto de estudo · Inteligência narrativa</p>
+      <h1 class="titulo" id="tituloHero">Sua história, mapeada.</h1>
+      <p class="sub" id="subHero">Você escreve por capítulos. A Trama lê cada um, constrói o mapa vivo da sua obra e avisa quando algo contradiz o que você já estabeleceu.<br><em>Ela não escreve por você. Ela lembra por você.</em></p>
+      <div class="dica" id="dicaHero"><span class="fio-dica"></span><span>Role para ler</span></div>
+    </div>
+  </section>
+
+  <section id="caos" class="cena pinada" data-cap="01" data-nome="O fio se perde">
+    <div class="caos-inner">
+      <p class="eyebrow">Capítulo 1 · O fio se perde</p>
+      <h2 class="caos-titulo" id="scramble" data-text="Depois de trinta capítulos, cinquenta personagens e três linhas do tempo, nenhuma memória humana dá conta."></h2>
+    </div>
+    <div class="fragmentos" aria-hidden="true">
+      <span class="frag" style="--x:6%;--y:16%" data-z=".9"><b>Marina jurou nunca voltar a Porto Cinzento</b></span>
+      <span class="frag" style="--x:72%;--y:12%" data-z=".6"><b>cap. 12 · inverno</b></span>
+      <span class="frag ouro" style="--x:78%;--y:74%" data-z="1"><b>Teo · olhos cinzentos / castanhos?</b></span>
+      <span class="frag" style="--x:12%;--y:70%" data-z=".7"><b>Pedro morreu no volume 2?</b></span>
+      <span class="frag" style="--x:58%;--y:84%" data-z=".5"><b>a carta · nunca entregue</b></span>
+      <span class="frag" style="--x:30%;--y:8%" data-z=".4"><b>Casa Albuquerque · facção ou família?</b></span>
+      <span class="frag ouro" style="--x:84%;--y:40%" data-z=".8"><b>dois dias a cavalo ≠ do outro lado do continente</b></span>
+      <span class="frag" style="--x:4%;--y:44%" data-z=".55"><b>quem sabe do segredo?</b></span>
+      <span class="frag" style="--x:40%;--y:90%" data-z=".85"><b>cap. 27 · verão</b></span>
+      <span class="frag" style="--x:64%;--y:28%" data-z=".45"><b>o duelo · sem consequência</b></span>
+      <span class="frag" style="--x:22%;--y:30%" data-z=".65"><b>o ferreiro · apareceu uma vez</b></span>
+      <span class="frag" style="--x:48%;--y:60%" data-z=".3"><b>três linhas do tempo</b></span>
+    </div>
+  </section>
+
+  <section id="leitura" class="cena pinada" data-cap="02" data-nome="A Trama lê">
+    <div class="leitura-grid">
+      <div class="manuscrito">
+        <p class="cap-rotulo">Capítulo 27 · rascunho</p>
+        <p class="texto" id="texto"><span class="ent" data-tag="0" style="--c:var(--personagem)">Marina</span> desceu do barco em <span class="ent" data-tag="4" style="--c:var(--local)">Porto Cinzento</span> com <span class="ent" data-tag="5" style="--c:var(--objeto)">a carta</span> ainda fechada no bolso do casaco. Tinha jurado a <span class="ent" data-tag="1" style="--c:var(--personagem)">Pedro</span>, na noite do <span class="ent" data-tag="6" style="--c:var(--evento)">incêndio</span>, que nunca voltaria àquela cidade — e agora o cheiro de sal e carvão lhe subia pela garganta como uma acusação. Na praça, os estandartes da <span class="ent" data-tag="7" style="--c:var(--organizacao)">Casa Albuquerque</span> balançavam sobre o mercado. Um <span class="ent" data-tag="3" style="--c:var(--personagem)">ferreiro</span> a reconheceu e desviou o olhar. Ela apertou <span class="ent" data-tag="5" style="--c:var(--objeto)">a carta</span>. Se <span class="ent" data-tag="2" style="--c:var(--personagem)">Teo</span> estivesse vivo, seria ali que o encontraria.</p>
+      </div>
+      <aside class="leitura-lado">
+        <p class="eyebrow">Capítulo 2 · A Trama lê</p>
+        <h2>Cada capítulo salvo, um mapa mais vivo.</h2>
+        <p>A IA extrai personagens, locais, objetos e eventos, reconcilia com tudo o que já sabe da obra e só analisa o que é novo. Nada é refeito do zero.</p>
+        <ul class="legenda">
+          <li style="--c:var(--personagem)"><i></i>personagem</li>
+          <li style="--c:var(--local)"><i></i>local</li>
+          <li style="--c:var(--evento)"><i></i>evento</li>
+          <li style="--c:var(--objeto)"><i></i>objeto</li>
+          <li style="--c:var(--organizacao)"><i></i>organização</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <section id="mapa" class="cena pinada" data-cap="03" data-nome="O mapa vive">
+    <div class="mapa-cabeca">
+      <p class="eyebrow">Capítulo 3 · O mapa vive</p>
+      <h2>Escreva. O mapa se mantém sozinho.</h2>
+    </div>
+    <div class="trilha" id="trilha">
+      <article class="painel" data-tilt>
+        <div class="painel-num">01 / 05</div>
+        <div class="painel-arte"><svg viewBox="0 0 300 150" aria-hidden="true">
+          <g stroke="rgba(224,89,107,.45)" stroke-width="1"><line x1="70" y1="70" x2="140" y2="40"/><line x1="70" y1="70" x2="120" y2="110"/><line x1="140" y1="40" x2="210" y2="60"/><line x1="120" y1="110" x2="210" y2="60"/><line x1="210" y1="60" x2="250" y2="105"/><line x1="140" y1="40" x2="120" y2="110"/></g>
+          <circle cx="70" cy="70" r="7" fill="#E0596B"/><circle cx="140" cy="40" r="5" fill="#7FA8E0"/><circle cx="120" cy="110" r="5" fill="#D9A441"/><circle cx="210" cy="60" r="8" fill="#E0596B"/><circle cx="250" cy="105" r="4" fill="#6CBF9A"/><circle cx="40" cy="120" r="3" fill="#A98BD9"/>
+        </svg></div>
+        <h3>Grafo narrativo</h3>
+        <p>Personagens, locais, eventos e objetos conectados automaticamente. Veja sua história como uma constelação — e encontre conexões que você não sabia que existiam.</p>
+      </article>
+      <article class="painel" data-tilt>
+        <div class="painel-num">02 / 05</div>
+        <div class="painel-arte"><svg viewBox="0 0 300 150" aria-hidden="true">
+          <rect x="60" y="22" width="180" height="106" rx="6" fill="rgba(27,31,46,.9)" stroke="#272C3D"/>
+          <circle cx="82" cy="44" r="8" fill="#E0596B"/><rect x="98" y="39" width="70" height="8" rx="4" fill="#ECE9E2" opacity=".8"/>
+          <rect x="74" y="66" width="150" height="6" rx="3" fill="#B9B7B1" opacity=".35"/><rect x="74" y="80" width="120" height="6" rx="3" fill="#B9B7B1" opacity=".35"/>
+          <rect x="74" y="94" width="140" height="6" rx="3" fill="#D9A441" opacity=".85"/><rect x="74" y="108" width="90" height="6" rx="3" fill="#B9B7B1" opacity=".35"/>
+        </svg></div>
+        <h3>Fichas vivas</h3>
+        <p>Cada personagem tem uma ficha que se atualiza sozinha a cada capítulo: o que viveu, jurou, quebrou, com quem se relaciona. Você aprova o que entra.</p>
+      </article>
+      <article class="painel" data-tilt>
+        <div class="painel-num">03 / 05</div>
+        <div class="painel-arte"><svg viewBox="0 0 300 150" aria-hidden="true">
+          <line x1="30" y1="80" x2="270" y2="80" stroke="#343A4E" stroke-width="1"/>
+          <g fill="#7FA8E0"><circle cx="50" cy="80" r="5"/><circle cx="110" cy="80" r="5"/><circle cx="200" cy="80" r="5"/><circle cx="255" cy="80" r="5"/></g>
+          <circle cx="155" cy="80" r="7" fill="#D9A441"/><line x1="155" y1="73" x2="155" y2="46" stroke="#D9A441" stroke-width="1"/>
+          <text x="155" y="40" text-anchor="middle" font-family="Spline Sans Mono, monospace" font-size="10" fill="#D9A441">conflito de datas</text>
+          <text x="50" y="104" text-anchor="middle" font-family="Spline Sans Mono, monospace" font-size="9" fill="#7C808F">cap. 3</text>
+          <text x="255" y="104" text-anchor="middle" font-family="Spline Sans Mono, monospace" font-size="9" fill="#7C808F">cap. 27</text>
+        </svg></div>
+        <h3>Linha do tempo</h3>
+        <p>Os eventos da obra ordenados no tempo, sem você montar nada — mesmo quando a narrativa não é linear. Datas impossíveis aparecem antes de irem para o livro.</p>
+      </article>
+      <article class="painel" data-tilt>
+        <div class="painel-num">04 / 05</div>
+        <div class="painel-arte"><svg viewBox="0 0 300 150" aria-hidden="true">
+          <g fill="#B9B7B1" opacity=".3"><rect x="50" y="30" width="200" height="6" rx="3"/><rect x="50" y="44" width="160" height="6" rx="3"/><rect x="50" y="58" width="190" height="6" rx="3"/><rect x="50" y="92" width="170" height="6" rx="3"/><rect x="50" y="106" width="200" height="6" rx="3"/></g>
+          <rect x="50" y="72" width="130" height="8" rx="4" fill="#E0596B"/>
+          <text x="190" y="80" font-family="Spline Sans Mono, monospace" font-size="10" fill="#E0596B">onde você parou</text>
+        </svg></div>
+        <h3>Recap de retorno</h3>
+        <p>Voltou depois de semanas? Um resumo do estado de cada trama e personagem te recoloca dentro da história em minutos, não em horas de releitura.</p>
+      </article>
+      <article class="painel" data-tilt>
+        <div class="painel-num">05 / 05</div>
+        <div class="painel-arte"><svg viewBox="0 0 300 150" aria-hidden="true">
+          <path d="M40 75 H130" stroke="#ECE9E2" stroke-width="1.5" fill="none"/>
+          <path d="M130 75 C 170 75, 170 40, 260 40" stroke="#E0596B" stroke-width="1.5" fill="none" stroke-dasharray="4 4"/>
+          <path d="M130 75 C 170 75, 170 110, 260 110" stroke="#7FA8E0" stroke-width="1.5" fill="none" stroke-dasharray="4 4"/>
+          <circle cx="130" cy="75" r="5" fill="#ECE9E2"/><circle cx="260" cy="40" r="4" fill="#E0596B"/><circle cx="260" cy="110" r="4" fill="#7FA8E0"/>
+          <text x="40" y="62" font-family="Spline Sans Mono, monospace" font-size="10" fill="#7C808F">o texto fica como está</text>
+        </svg></div>
+        <h3>E se…</h3>
+        <p>Simule ramificações — e se Pedro tivesse sobrevivido? — sem alterar uma linha do manuscrito. A IA explora; a decisão continua sua.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="alerta" class="cena pinada" data-cap="04" data-nome="O alerta">
+    <div class="alerta-inner">
+      <p class="eyebrow">Capítulo 4 · O alerta</p>
+      <div class="cotejo">
+        <blockquote class="trecho a"><cite>Capítulo 3 · §14</cite>“Nunca mais volto a <mark>Porto Cinzento</mark>”, disse Marina, e apagou a vela.</blockquote>
+        <svg class="fio-ouro" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path id="fioOuro" pathLength="1" d="M 14 26 C 40 26, 56 74, 86 74"/></svg>
+        <blockquote class="trecho b"><cite>Capítulo 27 · §1</cite>Marina desceu do barco em <mark>Porto Cinzento</mark> com a carta ainda fechada no bolso.</blockquote>
+      </div>
+      <div class="cartao-alerta">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14" r="1" fill="currentColor"/></svg>
+        <small>Inconsistência de personagem</small>
+        <p>Isso contradiz o capítulo 3: Marina jurou nunca voltar a Porto Cinzento.</p>
+        <div class="evid">evidência · cap. 3 §14 · cap. 27 §1</div>
+        <div class="acoes"><button type="button" data-hover>Confirmar</button><button type="button" data-hover>Ignorar</button></div>
+      </div>
+      <p class="nota-alerta">Em ouro, não em vermelho. A Trama fala como um editor apontando algo, sempre cita a evidência, e a decisão é sua.</p>
+    </div>
+  </section>
+
+  <section id="privacidade" class="cena pinada" data-cap="05" data-nome="Sua máquina">
+    <div class="maquina" id="maquina" aria-hidden="true">
+      <i class="canto tl"></i><i class="canto tr"></i><i class="canto bl"></i><i class="canto br"></i>
+      <span class="etq tl">ollama · local</span><span class="etq tr">0 bytes enviados</span>
+      <span class="etq bl">manuscrito · no seu disco</span><span class="etq br">modo offline · sim</span>
+    </div>
+    <div class="priv-texto">
+      <p class="eyebrow">Capítulo 5 · Sua máquina</p>
+      <h2>A IA roda no seu computador.</h2>
+      <p>Seu manuscrito é seu: não vai para a nuvem sem você mandar e não treina modelo de ninguém. Num momento de IAs que prometem escrever por você, este estudo aposta no outro lado.</p>
+    </div>
+  </section>
+
+  <section id="convite" class="cena" data-cap="06" data-nome="O estudo">
+    <div class="convite-inner">
+      <p class="eyebrow">O estudo</p>
+      <h2 class="titulo-fim" id="tituloFim">Procuro escritores voluntários.</h2>
+      <p>Se você tem uma história longa em andamento — romance, série, campanha de RPG, roteiro — e topa testar o experimento na sua obra, quero você no estudo. Sem custo: é pesquisa, não produto. Em troca, só peço seu feedback honesto.</p>
+      <a class="botao magnet" data-hover href="mailto:[contato@seudominio.com.br]?subject=Quero%20participar%20do%20estudo"><i></i><span>Me conte o que você escreve</span></a>
+    </div>
+    <footer class="rodape">
+      <a class="logo" href="#abertura" data-hover><i></i>Trama</a>
+      <p class="mono">A palavra é sua, sempre.</p>
+      <a href="https://www.linkedin.com/in/[seu-perfil]" data-hover>Diário do projeto no LinkedIn</a>
+    </footer>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  // Rede de segurança: mesmo que uma dependência falhe (WebGL, fontes, CDN), a
+  // página nunca fica presa no loader nem com o scroll travado.
+  setTimeout(() => {
+    const l = document.getElementById('loader'); if (l) l.remove();
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  }, 6000);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const narrow = () => innerWidth < 860;
+  gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.config({ ignoreMobileResize: true });
+
+  /* ---------- rolagem suave ---------- */
+  let lenis = null;
+  if (!reduce && typeof Lenis !== 'undefined') {
+    lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((t) => lenis.raf(t * 1000));
+    gsap.ticker.lagSmoothing(0);
+    lenis.stop();
+  }
+
+  /* ---------- utilidades ---------- */
+  function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const easeIO = (t) => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+  // divide um elemento em palavras/caracteres com máscara (para revelar)
+  function splitChars(el){
+    const text = el.textContent.trim();
+    el.textContent = '';
+    const words = text.split(/\s+/);
+    const chars = [];
+    words.forEach((w, wi) => {
+      const ws = document.createElement('span'); ws.className = 'w';
+      for (const ch of w) {
+        const m = document.createElement('span'); m.className = 'm';
+        const c = document.createElement('span'); c.className = 'c'; c.textContent = ch;
+        m.appendChild(c); ws.appendChild(m); chars.push(c);
+      }
+      el.appendChild(ws);
+      if (wi < words.length - 1) el.appendChild(document.createTextNode(' '));
+    });
+    return chars;
+  }
+
+  /* ---------- cena 3D ---------- */
+  const HERO = [
+    { n:'Marina',           t:'personagem',  p:[ 0.55, 0.65, 0.35], gold:1 },
+    { n:'Pedro',            t:'personagem',  p:[-1.35, 1.25,-0.35], gold:0 },
+    { n:'Teo',              t:'personagem',  p:[ 1.75, 1.35,-0.6 ], gold:0 },
+    { n:'o ferreiro',       t:'personagem',  p:[ 1.55,-0.95, 0.25], gold:0 },
+    { n:'Porto Cinzento',   t:'local',       p:[ 0.95,-0.35, 0.95], gold:1 },
+    { n:'a carta',          t:'objeto',      p:[-0.6, -0.55, 1.15], gold:0 },
+    { n:'o incêndio',       t:'evento',      p:[-1.9,  0.2, -0.8 ], gold:0 },
+    { n:'Casa Albuquerque', t:'organizacao', p:[ 2.35, 0.25,-0.15], gold:0 },
+  ];
+  const HERO_EDGES = [[0,1],[0,4],[0,5],[1,6],[0,6],[4,7],[3,4],[3,0],[2,4],[5,2],[1,5]];
+  const COL = { personagem:0xE0596B, local:0x7FA8E0, evento:0xD9A441, objeto:0x6CBF9A, organizacao:0xA98BD9 };
+  const CENTER = { personagem:[0.3,0.5,0], local:[1.2,-0.7,0.4], evento:[-1.6,0.4,-0.5], objeto:[-0.3,-1.3,0.7], organizacao:[2.0,1.0,-0.7] };
+  const TYPE_W = ['personagem','personagem','personagem','local','local','evento','evento','objeto','organizacao'];
+
+  /* ---------- estado dirigido pela rolagem (independe de WebGL) ---------- */
+  const base = { morph:0, collapse:0, gold:0, dim:0, camZ:9.5, rotY:0, rotX:0, shift:0 };
+  const cur = Object.assign({}, base);
+  const scenes = [];
+  function addScene(to, ease){ const s = { p:0, to, ease: ease || easeIO }; scenes.push(s); return s; }
+  function targetState(){
+    const v = Object.assign({}, base);
+    for (const s of scenes) { const e = s.ease(s.p); for (const k in s.to) v[k] += (s.to[k] - v[k]) * e; }
+    return v;
+  }
+  const sCaos    = addScene({ camZ:8.2, rotY:0.35 });
+  const sLerA    = addScene({ shift: narrow() ? 0 : 2.2, dim: narrow() ? 0.35 : 0 }, easeIO);
+  const sLerB    = addScene({ morph:1, camZ:7.9 }, (t) => easeIO(t));
+  const sMapaA   = addScene({ shift:0, dim:0 });
+  const sMapaB   = addScene({ rotY:1.75, rotX:0.22, camZ:8.8 }, (t) => t);
+  const sAlerta  = addScene({ dim:0.78, gold:1, rotY:2.15, rotX:0.05 });
+  const sPriv    = addScene({ dim:0, gold:0, camZ:11.2, rotY:2.6, rotX:0 });
+  const sFim     = addScene({ collapse:1, camZ:8, rotY:3.1 });
+
+  const intro = { reveal: reduce ? 1 : 0 };
+  const mouse = { x:0, y:0, tx:0, ty:0 };
+  addEventListener('pointermove', (e) => { mouse.tx = (e.clientX / innerWidth - .5) * 2; mouse.ty = (e.clientY / innerHeight - .5) * 2; }, { passive:true });
+
+  /* ---------- etiquetas projetadas (array simples; alimentado pelo 3D) ---------- */
+  const tags = [...document.querySelectorAll('#tags .tag')];
+  const tagOn = new Array(HERO.length).fill(false);
+
+  /* ---------- cena 3D (opcional — degrada sem WebGL) ---------- */
+  let pivot;
+  try {
+  const canvas = document.getElementById('gl');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, alpha:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 100);
+  camera.position.z = 9.5;
+  pivot = new THREE.Group(); scene.add(pivot);
+
+  const U = {
+    uMorph:{value:0}, uCollapse:{value:0}, uReveal:{value:0}, uTime:{value:0},
+    uGold:{value:0}, uDim:{value:0}, uPR:{value:renderer.getPixelRatio()}
+  };
+
+  const N = coarse ? 170 : 250;
+  const rand = mulberry32(7);
+  const posA = new Float32Array(N*3), posB = new Float32Array(N*3), posC = new Float32Array(N*3);
+  const col = new Float32Array(N*3), size = new Float32Array(N), ord = new Float32Array(N), hero = new Float32Array(N), gold = new Float32Array(N);
+  const tmpColor = new THREE.Color();
+  for (let i = 0; i < N; i++) {
+    let type, b;
+    if (i < HERO.length) {
+      type = HERO[i].t; b = HERO[i].p; size[i] = 10 + rand()*3; ord[i] = (i / HERO.length) * 0.3; hero[i] = 1; gold[i] = HERO[i].gold;
+    } else {
+      type = TYPE_W[Math.floor(rand()*TYPE_W.length)];
+      const c = CENTER[type];
+      const r = 3.1 * Math.pow(rand(), 0.6), th = rand()*Math.PI*2, ph = Math.acos(2*rand()-1);
+      const sx = r*Math.sin(ph)*Math.cos(th)*1.35, sy = r*Math.sin(ph)*Math.sin(th)*0.85, sz = r*Math.cos(ph)*0.7;
+      b = [ sx*0.62 + c[0]*0.45, sy*0.62 + c[1]*0.45, sz*0.62 + c[2]*0.45 ];
+      const s = rand(); size[i] = 2.6 + s*s*5.5; ord[i] = 0.3 + 0.7*rand(); hero[i] = 0; gold[i] = 0;
+    }
+    posB.set(b, i*3);
+    posA.set([ (rand()-.5)*15, (rand()-.5)*9.5, (rand()-.5)*7 - 1 ], i*3);
+    posC.set([ (rand()-.5)*0.14, (rand()-.5)*0.14, (rand()-.5)*0.14 ], i*3);
+    tmpColor.setHex(COL[type]); col.set([tmpColor.r, tmpColor.g, tmpColor.b], i*3);
+  }
+
+  // arestas: vizinhos mais próximos no grafo organizado + arestas dos protagonistas
+  const edges = new Set();
+  const key = (a,b) => a < b ? a+'-'+b : b+'-'+a;
+  for (let i = 0; i < N; i++) {
+    const ds = [];
+    for (let j = 0; j < N; j++) { if (i === j) continue;
+      const dx = posB[i*3]-posB[j*3], dy = posB[i*3+1]-posB[j*3+1], dz = posB[i*3+2]-posB[j*3+2];
+      ds.push([dx*dx+dy*dy+dz*dz, j]); }
+    ds.sort((a,b) => a[0]-b[0]);
+    const k = i < HERO.length ? 3 : (rand() < 0.35 ? 2 : 1);
+    for (let n = 0; n < k; n++) if (ds[n][0] < 2.4*2.4) edges.add(key(i, ds[n][1]));
+  }
+  HERO_EDGES.forEach(([a,b]) => edges.add(key(a,b)));
+  const E = edges.size;
+  const lA = new Float32Array(E*6), lB = new Float32Array(E*6), lC = new Float32Array(E*6);
+  const lOrdV = new Float32Array(E*2), lHeroV = new Float32Array(E*2), lOrdE = new Float32Array(E*2), lGoldE = new Float32Array(E*2);
+  let e = 0;
+  for (const k of edges) {
+    const [a,b] = k.split('-').map(Number);
+    [a,b].forEach((idx, s) => {
+      const v = e*2 + s;
+      lA.set(posA.subarray(idx*3, idx*3+3), v*3); lB.set(posB.subarray(idx*3, idx*3+3), v*3); lC.set(posC.subarray(idx*3, idx*3+3), v*3);
+      lOrdV[v] = ord[idx]; lHeroV[v] = hero[idx];
+      lOrdE[v] = Math.max(ord[a], ord[b]); lGoldE[v] = gold[a]*gold[b];
+    });
+    e++;
+  }
+
+  const DRIFT = `
+    vec3 drift(vec3 p, float o, float h){
+      float d = (1.0 - uCollapse) * (1.0 - h);
+      return p + d * 0.09 * vec3(sin(uTime*0.6 + o*31.0), cos(uTime*0.5 + o*17.0), sin(uTime*0.4 + o*11.0));
+    }`;
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(posA, 3));
+  pGeo.setAttribute('positionB', new THREE.BufferAttribute(posB, 3));
+  pGeo.setAttribute('positionC', new THREE.BufferAttribute(posC, 3));
+  pGeo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  pGeo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  pGeo.setAttribute('aOrder', new THREE.BufferAttribute(ord, 1));
+  pGeo.setAttribute('aHero', new THREE.BufferAttribute(hero, 1));
+  pGeo.setAttribute('aGold', new THREE.BufferAttribute(gold, 1));
+  const pMat = new THREE.ShaderMaterial({
+    uniforms: U, transparent:true, depthWrite:false, depthTest:false, blending:THREE.AdditiveBlending,
+    vertexShader: `
+      attribute vec3 positionB; attribute vec3 positionC; attribute vec3 aColor;
+      attribute float aSize; attribute float aOrder; attribute float aHero; attribute float aGold;
+      uniform float uMorph, uCollapse, uReveal, uTime, uGold, uDim, uPR;
+      varying vec3 vColor; varying float vAlpha;
+      ${DRIFT}
+      void main(){
+        vec3 p = mix(position, positionB, uMorph);
+        p = mix(p, positionC, uCollapse);
+        p = drift(p, aOrder, aHero);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        float rev = smoothstep(aOrder - 0.22, aOrder + 0.02, uReveal);
+        float g = uGold * aGold;
+        float pulse = 1.0 + 0.10 * sin(uTime*2.2 + aOrder*40.0);
+        float sz = aSize * (0.5 + 0.5*uMorph) * (1.0 + 1.1*g) * pulse * (1.0 - 0.55*uCollapse);
+        gl_PointSize = sz * uPR * (64.0 / -mv.z) * rev;
+        gl_Position = projectionMatrix * mv;
+        vColor = mix(aColor, vec3(0.851, 0.643, 0.255), g);
+        float bright = mix(0.42, 1.0, uMorph) * (1.0 - uDim*(1.0 - g)) * (1.0 - 0.88*uCollapse);
+        vAlpha = rev * bright;
+      }`,
+    fragmentShader: `
+      precision highp float;
+      varying vec3 vColor; varying float vAlpha;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5; float d = length(c) * 2.0;
+        if (d > 1.0) discard;
+        float glow = pow(1.0 - d, 2.4);
+        float core = smoothstep(0.34, 0.0, d);
+        float a = (glow*0.7 + core*0.95) * vAlpha;
+        gl_FragColor = vec4(vColor * (0.85 + 0.55*core), a);
+      }`
+  });
+  const points = new THREE.Points(pGeo, pMat); pivot.add(points);
+
+  const lGeo = new THREE.BufferGeometry();
+  lGeo.setAttribute('position', new THREE.BufferAttribute(lA, 3));
+  lGeo.setAttribute('positionB', new THREE.BufferAttribute(lB, 3));
+  lGeo.setAttribute('positionC', new THREE.BufferAttribute(lC, 3));
+  lGeo.setAttribute('aOrderV', new THREE.BufferAttribute(lOrdV, 1));
+  lGeo.setAttribute('aHeroV', new THREE.BufferAttribute(lHeroV, 1));
+  lGeo.setAttribute('aOrderE', new THREE.BufferAttribute(lOrdE, 1));
+  lGeo.setAttribute('aGoldE', new THREE.BufferAttribute(lGoldE, 1));
+  const lMat = new THREE.ShaderMaterial({
+    uniforms: U, transparent:true, depthWrite:false, depthTest:false, blending:THREE.AdditiveBlending,
+    vertexShader: `
+      attribute vec3 positionB; attribute vec3 positionC;
+      attribute float aOrderV; attribute float aHeroV; attribute float aOrderE; attribute float aGoldE;
+      uniform float uMorph, uCollapse, uReveal, uTime, uGold, uDim;
+      varying float vAlpha; varying float vGold;
+      ${DRIFT}
+      void main(){
+        vec3 p = mix(position, positionB, uMorph);
+        p = mix(p, positionC, uCollapse);
+        p = drift(p, aOrderV, aHeroV);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        float rev = smoothstep(aOrderE - 0.1, aOrderE + 0.05, uReveal);
+        float g = uGold * aGoldE;
+        vGold = g;
+        vAlpha = mix(0.03, 0.5, uMorph) * rev * (1.0 - uDim*(1.0 - g)) * (1.0 - uCollapse) * (1.0 + 1.2*g);
+      }`,
+    fragmentShader: `
+      precision highp float;
+      varying float vAlpha; varying float vGold;
+      void main(){
+        vec3 c = mix(vec3(0.878, 0.349, 0.42), vec3(0.851, 0.643, 0.255), vGold);
+        gl_FragColor = vec4(c, vAlpha);
+      }`
+  });
+  const lines = new THREE.LineSegments(lGeo, lMat); pivot.add(lines);
+
+  /* ---------- etiquetas projetadas ---------- */
+  const v3 = new THREE.Vector3();
+  function placeTags(){
+    const m = cur.morph, c = cur.collapse;
+    for (let i = 0; i < HERO.length; i++) {
+      const ax = posA[i*3], ay = posA[i*3+1], az = posA[i*3+2], b = HERO[i].p;
+      let x = ax + (b[0]-ax)*m, y = ay + (b[1]-ay)*m, z = az + (b[2]-az)*m;
+      x += (posC[i*3]-x)*c; y += (posC[i*3+1]-y)*c; z += (posC[i*3+2]-z)*c;
+      v3.set(x, y, z).applyMatrix4(pivot.matrixWorld).project(camera);
+      const sx = (v3.x*0.5 + 0.5) * innerWidth, sy = (-v3.y*0.5 + 0.5) * innerHeight;
+      const t = tags[i];
+      t.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%,-50%)`;
+      const g = HERO[i].gold;
+      const vis = tagOn[i] && v3.z < 1 && c < 0.25 && (g ? true : cur.dim < 0.45) && m > 0.35;
+      t.classList.toggle('on', vis);
+      t.classList.toggle('ouro', g === 1 && cur.gold > 0.5);
+    }
+  }
+
+  /* ---------- laço de render ---------- */
+  let t0 = 0;
+  gsap.ticker.add((time, dt) => {
+    const k = 1 - Math.pow(0.001, dt / 1000); // suavização independente de fps
+    const tgt = targetState();
+    for (const key in tgt) cur[key] += (tgt[key] - cur[key]) * Math.min(1, k * 1.6);
+    mouse.x += (mouse.tx - mouse.x) * k; mouse.y += (mouse.ty - mouse.y) * k;
+    if (!reduce) t0 += dt / 1000;
+    U.uTime.value = t0; U.uMorph.value = cur.morph; U.uCollapse.value = cur.collapse;
+    U.uGold.value = cur.gold; U.uDim.value = cur.dim; U.uReveal.value = intro.reveal;
+    pivot.rotation.y = cur.rotY + mouse.x * 0.14;
+    pivot.rotation.x = cur.rotX - mouse.y * 0.09;
+    pivot.position.x = cur.shift;
+    camera.position.z = cur.camZ;
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
+    placeTags();
+  });
+  addEventListener('resize', () => {
+    renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    U.uPR.value = renderer.getPixelRatio();
+    sLerA.to.shift = narrow() ? 0 : 2.2; sLerA.to.dim = narrow() ? 0.35 : 0;
+  });
+  } catch (err) {
+    // WebGL indisponível (máquina virtual, RDP, GPU/driver restrito, aceleração
+    // desligada): o fundo 3D desliga, mas TODOS os efeitos 2D (loader, scrub,
+    // pins, scramble, leitura, mapa horizontal, alerta, privacidade, cursor)
+    // continuam funcionando normalmente.
+    const gl = document.getElementById('gl'); if (gl) gl.style.display = 'none';
+    console.warn('WebGL indisponível — efeito 3D desativado. Demais efeitos continuam.', err);
+  }
+
+  /* ---------- cursor e magnetismo ---------- */
+  if (!coarse) {
+    const cursor = document.getElementById('cursor');
+    const dot = cursor.querySelector('.ponto'), ring = cursor.querySelector('.anel');
+    const c = { x: innerWidth/2, y: innerHeight/2, rx: innerWidth/2, ry: innerHeight/2 };
+    addEventListener('pointermove', (e) => { c.x = e.clientX; c.y = e.clientY; }, { passive:true });
+    gsap.ticker.add(() => {
+      c.rx += (c.x - c.rx) * 0.18; c.ry += (c.y - c.ry) * 0.18;
+      dot.style.left = c.x + 'px'; dot.style.top = c.y + 'px';
+      ring.style.left = c.rx + 'px'; ring.style.top = c.ry + 'px';
+    });
+    document.addEventListener('pointerover', (e) => { if (e.target.closest('[data-hover]')) document.body.classList.add('cur-hover'); });
+    document.addEventListener('pointerout', (e) => { if (e.target.closest('[data-hover]')) document.body.classList.remove('cur-hover'); });
+    document.querySelectorAll('.magnet').forEach((el) => {
+      el.addEventListener('pointermove', (e) => {
+        const r = el.getBoundingClientRect();
+        gsap.to(el, { x: (e.clientX - (r.left + r.width/2)) * 0.28, y: (e.clientY - (r.top + r.height/2)) * 0.28, duration: .5, ease: 'power2.out' });
+      });
+      el.addEventListener('pointerleave', () => gsap.to(el, { x:0, y:0, duration:.7, ease:'elastic.out(1,.45)' }));
+    });
+    document.querySelectorAll('[data-tilt]').forEach((el) => {
+      el.addEventListener('pointermove', (e) => {
+        const r = el.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--mx', (px*100).toFixed(1) + '%'); el.style.setProperty('--my', (py*100).toFixed(1) + '%');
+        gsap.to(el, { rotateY: (px - .5) * 10, rotateX: -(py - .5) * 8, transformPerspective: 900, duration:.5, ease:'power2.out' });
+      });
+      el.addEventListener('pointerleave', () => gsap.to(el, { rotateY:0, rotateX:0, duration:.8, ease:'power3.out' }));
+    });
+  }
+
+  /* ---------- capítulos: contador e trilho ---------- */
+  const capNum = document.getElementById('capNum'), capNome = document.getElementById('capNome');
+  const trilhoLis = [...document.querySelectorAll('#trilhoCaps li')];
+  const trilhoNo = document.getElementById('trilhoNo');
+
+  /* ---------- montagem após as fontes ---------- */
+  function build(){
+    const heroChars = splitChars(document.getElementById('tituloHero'));
+    const fimChars = splitChars(document.getElementById('tituloFim'));
+
+    // abertura: some suavemente ao rolar
+    gsap.to('#abertura .hero', { y: -80, opacity: 0, ease: 'none', scrollTrigger: { trigger: '#abertura', start: 'top top', end: 'bottom top', scrub: true } });
+
+    // capítulo 1: caos
+    const sc = document.getElementById('scramble');
+    const scText = sc.dataset.text;
+    const scChars = [];
+    scText.split(/\s+/).forEach((w, wi, arr) => {
+      const ws = document.createElement('span'); ws.className = 'w';
+      for (const ch of w) { const c = document.createElement('span'); c.className = 'c oculto'; c.textContent = ch; c.dataset.ch = ch; ws.appendChild(c); scChars.push(c); }
+      sc.appendChild(ws); if (wi < arr.length - 1) sc.appendChild(document.createTextNode(' '));
+    });
+    const GLYPHS = '─│┼·•◦∙⋅~/\\|╱╲';
+    let scP = 0, scActive = false;
+    function renderScramble(){
+      const n = Math.floor(clamp01(scP / 0.5) * scChars.length);
+      scChars.forEach((c, i) => {
+        if (i < n) { c.textContent = c.dataset.ch; c.classList.remove('oculto', 'ruido'); }
+        else if (i < n + 10 && n > 0) { c.textContent = GLYPHS[Math.floor(Math.random()*GLYPHS.length)]; c.classList.remove('oculto'); c.classList.add('ruido'); }
+        else { c.classList.add('oculto'); c.classList.remove('ruido'); }
+      });
+    }
+    let scTick = 0;
+    gsap.ticker.add((t) => { if (scActive && !reduce && t - scTick > 0.06) { scTick = t; renderScramble(); } });
+    const frags = [...document.querySelectorAll('.frag')];
+    const tlCaos = gsap.timeline({
+      scrollTrigger: { trigger: '#caos', start: 'top top', end: '+=150%', pin: true, scrub: 0.5,
+        onUpdate: (self) => { sCaos.p = self.progress; scP = self.progress; renderScramble(); },
+        onRefresh: (self) => { sCaos.p = self.progress; },
+        onToggle: (self) => { scActive = self.isActive; } }
+    });
+    tlCaos.fromTo(frags, { y: (i, el) => 140 * parseFloat(el.dataset.z) }, { y: (i, el) => -140 * parseFloat(el.dataset.z), ease: 'none', duration: 1 }, 0)
+          .fromTo(frags.map(f => f.firstElementChild), { opacity: 0, scale: .85, filter: 'blur(6px)' }, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: .28, stagger: .025, ease: 'power2.out' }, .08)
+          .to(frags.map(f => f.firstElementChild), { opacity: 0, scale: .7, filter: 'blur(8px)', duration: .18, stagger: .01, ease: 'power2.in' }, .78)
+          .to('#caos .caos-inner', { opacity: 0, y: -40, duration: .18, ease: 'power2.in' }, .82);
+
+    // capítulo 2: leitura
+    const texto = document.getElementById('texto');
+    const words = [];
+    function wrapWords(node){
+      [...node.childNodes].forEach((ch) => {
+        if (ch.nodeType === 3) {
+          const frag = document.createDocumentFragment();
+          ch.textContent.split(/(\s+)/).forEach((tok) => {
+            if (!tok) return;
+            if (/^\s+$/.test(tok)) { frag.appendChild(document.createTextNode(tok)); return; }
+            const s = document.createElement('span'); s.className = 'w'; s.textContent = tok; frag.appendChild(s); words.push(s);
+          });
+          node.replaceChild(frag, ch);
+        } else if (ch.nodeType === 1) {
+          const start = words.length; wrapWords(ch); ch.dataset.at = start;
+        }
+      });
+    }
+    wrapWords(texto);
+    const ents = [...texto.querySelectorAll('.ent')];
+    let lastRead = -1;
+    function setRead(p){
+      const n = Math.floor(clamp01(p / 0.82) * (words.length + 1));
+      if (n === lastRead) return;
+      lastRead = n;
+      words.forEach((w, i) => { w.classList.toggle('lido', i < n); w.classList.toggle('agora', i === n - 1); });
+      tagOn.fill(false);
+      ents.forEach((en) => { const on = parseInt(en.dataset.at, 10) < n; en.classList.toggle('aceso', on); if (on) tagOn[parseInt(en.dataset.tag, 10)] = true; });
+    }
+    gsap.timeline({
+      scrollTrigger: { trigger: '#leitura', start: 'top top', end: '+=230%', pin: true, scrub: 0.4,
+        onUpdate: (self) => { const p = self.progress; sLerA.p = clamp01(p / 0.22); sLerB.p = clamp01((p - 0.04) / 0.86); setRead(p); },
+        onRefresh: (self) => { const p = self.progress; sLerA.p = clamp01(p / 0.22); sLerB.p = clamp01((p - 0.04) / 0.86); } }
+    }).from('.leitura-lado > *', { y: 24, opacity: 0, stagger: .06, duration: .25, ease: 'power2.out' }, .05)
+      .from('.manuscrito', { y: 30, opacity: 0, duration: .2, ease: 'power2.out' }, 0);
+
+    // capítulo 3: mapa (rolagem horizontal)
+    const trilha = document.getElementById('trilha');
+    const dist = () => Math.max(0, trilha.scrollWidth - innerWidth + 40);
+    gsap.to(trilha, { x: () => -dist(), ease: 'none',
+      scrollTrigger: { trigger: '#mapa', start: 'top top', end: () => '+=' + (dist() + innerHeight * 0.4), pin: true, scrub: 0.5, invalidateOnRefresh: true,
+        onUpdate: (self) => { sMapaA.p = clamp01(self.progress / 0.18); sMapaB.p = self.progress; },
+        onRefresh: (self) => { sMapaA.p = clamp01(self.progress / 0.18); sMapaB.p = self.progress; } }
+    });
+    gsap.from('.mapa-cabeca > *', { y: 30, opacity: 0, stagger: .1, duration: .8, ease: 'power3.out', scrollTrigger: { trigger: '#mapa', start: 'top 70%', toggleActions: 'play none none reverse' } });
+
+    // capítulo 4: alerta
+    gsap.timeline({
+      scrollTrigger: { trigger: '#alerta', start: 'top top', end: '+=170%', pin: true, scrub: 0.5,
+        onUpdate: (self) => { sAlerta.p = clamp01(self.progress / 0.5); },
+        onRefresh: (self) => { sAlerta.p = clamp01(self.progress / 0.5); } }
+    }).from('#alerta .eyebrow', { opacity: 0, y: 16, duration: .1 }, 0)
+      .from('.trecho.a', { y: 40, opacity: 0, duration: .18, ease: 'power2.out' }, .04)
+      .from('.trecho.b', { y: 40, opacity: 0, duration: .18, ease: 'power2.out' }, .24)
+      .fromTo('#fioOuro', { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: .3, ease: 'none' }, .34)
+      .from('.cartao-alerta', { y: 34, opacity: 0, scale: .96, duration: .2, ease: 'power3.out' }, .62)
+      .from('.nota-alerta', { opacity: 0, y: 16, duration: .14 }, .84);
+
+    // capítulo 5: sua máquina
+    gsap.timeline({
+      scrollTrigger: { trigger: '#privacidade', start: 'top top', end: '+=130%', pin: true, scrub: 0.5,
+        onUpdate: (self) => { sPriv.p = clamp01(self.progress / 0.55); },
+        onRefresh: (self) => { sPriv.p = clamp01(self.progress / 0.55); } }
+    }).to('.canto', { scale: 1, duration: .22, stagger: .04, ease: 'power3.out' }, .05)
+      .fromTo('#maquina', { '--b': 0 }, { '--b': 1, duration: .3, ease: 'none' }, .2)
+      .to('.etq', { opacity: 1, duration: .16, stagger: .06, ease: 'power2.out' }, .3)
+      .from('.priv-texto > *', { y: 30, opacity: 0, stagger: .08, duration: .3, ease: 'power3.out' }, .15);
+
+    // fecho
+    ScrollTrigger.create({ trigger: '#convite', start: 'top 85%', end: 'top 10%', scrub: true,
+      onUpdate: (self) => { sFim.p = self.progress; }, onRefresh: (self) => { sFim.p = self.progress; } });
+    gsap.to(fimChars, { y: 0, duration: .9, stagger: .018, ease: 'power3.out', scrollTrigger: { trigger: '#convite', start: 'top 60%', toggleActions: 'play none none reverse' } });
+    gsap.from('.convite-inner p, .convite-inner .botao, .rodape', { y: 24, opacity: 0, stagger: .1, duration: .8, ease: 'power3.out', scrollTrigger: { trigger: '#convite', start: 'top 55%', toggleActions: 'play none none reverse' } });
+
+    // contador de capítulos e trilho
+    document.querySelectorAll('.cena').forEach((sec, i) => {
+      const pinST = ScrollTrigger.getAll().find((t) => t.pin === sec);
+      const setCap = () => { capNum.textContent = sec.dataset.cap; capNome.textContent = sec.dataset.nome; trilhoLis.forEach((li, j) => li.classList.toggle('on', j === i)); };
+      ScrollTrigger.create({ trigger: sec,
+        start: pinST ? () => pinST.start - innerHeight * 0.5 : 'top 50%',
+        end: pinST ? () => pinST.end + innerHeight * 0.5 : 'bottom 50%',
+        onToggle: (self) => { if (self.isActive) setCap(); },
+        onRefresh: (self) => { if (self.isActive) setCap(); } });
+    });
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (self) => { trilhoNo.style.top = (self.progress * 100).toFixed(2) + '%'; } });
+
+    // abertura (preloader → título → constelação)
+    const loader = document.getElementById('loader');
+    const tlIn = gsap.timeline({ onComplete: () => { loader.remove(); if (lenis) lenis.start(); } });
+    if (reduce) {
+      tlIn.set(loader, { autoAlpha: 0 }).set(heroChars, { y: 0 }).set('#subHero, #dicaHero', { opacity: 1 });
+    } else {
+      document.documentElement.style.overflow = 'hidden';
+      tlIn.to('#loader path', { strokeDashoffset: 0, duration: 1.1, ease: 'power2.inOut' }, .15)
+          .to('#loader p', { opacity: 1, duration: .4 }, .5)
+          .to('#loader', { clipPath: 'inset(0 0 100% 0)', duration: .9, ease: 'power4.inOut' }, 1.35)
+          .to(heroChars, { y: 0, duration: 1.1, stagger: .022, ease: 'power3.out' }, 1.6)
+          .to(intro, { reveal: 1, duration: 2.6, ease: 'power2.inOut' }, 1.5)
+          .to('#subHero', { opacity: 1, duration: .8 }, 2.3)
+          .to('#dicaHero', { opacity: 1, duration: .8 }, 2.7)
+          .add(() => { document.documentElement.style.overflow = ''; }, 2.25);
+    }
+    ScrollTrigger.refresh();
+  }
+
+  let built = false;
+  const doBuild = () => { if (built) return; built = true; build(); };
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(doBuild);
+    // Se as fontes travarem (rede bloqueada), constrói mesmo assim.
+    setTimeout(doBuild, 3500);
+  } else {
+    doBuild();
+  }
+})();
+</script>
+</body>
+</html>
